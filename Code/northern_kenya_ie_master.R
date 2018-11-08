@@ -1,8 +1,8 @@
 # Northern Kenya IE Master
 
 # Filepaths --------------------------------------------------------------------
-if(Sys.info()["user"] == "WB521633") project_file_path <- "C:/Users/wb521633/Dropbox/World Bank/IEs/Northern Kenya IE"
-if(Sys.info()["user"] == "robmarty") project_file_path <- "~/Dropbox/World Bank/IEs/Northern Kenya IE"
+if(Sys.info()["user"] == "WB521633") project_file_path <- "C:/Users/wb521633/Dropbox/World Bank/IEs/Northern-Kenya-IE"
+if(Sys.info()["user"] == "robmarty") project_file_path <- "~/Dropbox/World Bank/IEs/Northern-Kenya-IE"
 if(Sys.info()["user"] == "r521633") project_file_path <- "/home/wb521633/IEs/Northern-Kenya-IE"
 
 raw_data_file_path <- file.path(project_file_path, "Data", "RawData")

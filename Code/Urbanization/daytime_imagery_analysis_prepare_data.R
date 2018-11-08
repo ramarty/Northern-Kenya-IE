@@ -1,8 +1,8 @@
 # Northern Kenya IE
 
 # Setup ------------------------------------------------------------------------
-if(Sys.info()["user"] == "WB521633") source("C:/Users/wb521633/Dropbox/World Bank/IEs/Northern Kenya IE/Code/northern_kenya_ie_master.R")
-if(Sys.info()["user"] == "robmarty") source("~/Dropbox/World Bank/IEs/Northern Kenya IE/Code/northern_kenya_ie_master.R")
+if(Sys.info()["user"] == "WB521633") source("C:/Users/wb521633/Dropbox/World Bank/IEs/Northern-Kenya-IE/Code/northern_kenya_ie_master.R")
+if(Sys.info()["user"] == "robmarty") source("~/Dropbox/World Bank/IEs/Northern-Kenya-IE/Code/northern_kenya_ie_master.R")
 
 library(raster)
 library(rgdal)
@@ -10,13 +10,14 @@ library(velox)
 library(doBy)
 library(ggplot2)
 library(gridExtra)
+source("https://raw.githubusercontent.com/ramarty/fast-functions/master/R/functions_in_chunks.R")
 
-buffer_size <- 20
+buffer_size <- 10
 
 set.seed(42)
 
 # Load Data --------------------------------------------------------------------
-  
+
 # Study Area
 setwd(file.path(intermediate_data_file_path, "Treatment Roads Buffer"))
 roads_study_area <- readOGR(dsn=".", layer=paste0("kenya_treat_roads_",buffer_size,"km_buff"))
@@ -72,22 +73,22 @@ random_sample_grid <- function(i, africover, africover_grid, road, stratefied){
       }
     }
     
-    sample_n_mult <- 15
+    sample_n_mult <- 30
     
     if(stratefied){
-    df_out <- rbind(
-      sample_dataframe(africover_points_i, "africover_kenya", 0, 5*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 1, 70*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 2, 300*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 3, 500*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 4, 120*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 5, 5*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 6, 25*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 7, 50*sample_n_mult),
-      africover_points_i[africover_points_i$africover_kenya %in% 8,],
-      sample_dataframe(africover_points_i, "africover_kenya", 9, 5*sample_n_mult),
-      sample_dataframe(africover_points_i, "africover_kenya", 10, 5*sample_n_mult)
-    )
+      df_out <- rbind(
+        sample_dataframe(africover_points_i, "africover_kenya", 0, 5*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 1, 70*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 2, 300*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 3, 500*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 4, 120*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 5, 5*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 6, 25*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 7, 50*sample_n_mult),
+        africover_points_i[africover_points_i$africover_kenya %in% 8,],
+        sample_dataframe(africover_points_i, "africover_kenya", 9, 5*sample_n_mult),
+        sample_dataframe(africover_points_i, "africover_kenya", 10, 5*sample_n_mult)
+      )
     } else{
       df_out <- rbind(
         sample_dataframe(africover_points_i, "africover_kenya", i=c(0:7,9:10), 15000),
@@ -112,10 +113,12 @@ random_points_a2 <- lapply(1:length(africover_a2_grid), random_sample_grid, afri
 random_points_b9 <- lapply(1:length(africover_b9_grid), random_sample_grid, africover_b9, africover_b9_grid, "b9", F) %>% bind_rows
 
 random_points <- rbind(random_points_a1, random_points_a2, random_points_b9)
+nrow(random_points)
 coordinates(random_points) <- ~x+y
 crs(random_points) <- CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
 
 random_points <- random_points[!is.na(over(random_points, roads_study_area)$id),]
+nrow(random_points)
 
 # Extract Landsat Values to Random Points --------------------------------------
 for(band in 1:12){
@@ -204,12 +207,62 @@ random_points$viirs_cf_cvg_10 <- extract(viirs_cf_cvg_10, random_points)
 random_points$viirs_cf_cvg_11 <- extract(viirs_cf_cvg_11, random_points)
 random_points$viirs_cf_cvg_12 <- extract(viirs_cf_cvg_12, random_points)
 
-# Save Data --------------------------------------------------------------------
-# Convert to Dataframe
+# Distance to Urban Area -------------------------------------------------------
+random_points_BU <- random_points[random_points$africover_kenya == 8,]
+random_points_NBU <- random_points[random_points$africover_kenya != 8,]
+random_points_BU$id <- 1
+
+calc_distance_NBU_to_BU <- function(start, chunk_size){
+  
+  end <- start + chunk_size - 1
+  
+  random_points_NBU_i <- random_points_NBU[start:end,]
+  
+  width <- 0.01
+  near_at_least_one_city <- FALSE
+  while(near_at_least_one_city == F){
+    random_points_NBU_i_buff <- gBuffer(random_points_NBU_i, width=.01,byid=F)
+    random_points_BU_crop <- crop(random_points_BU, random_points_NBU_i_buff)
+    if(nrow(random_points_BU_crop) > 0) near_at_least_one_city <- TRUE
+    width <- width + .02
+  }
+  
+  random_points_BU_crop_ag <- gBuffer(random_points_BU_crop, width=.0001, byid=F)
+  distance <- gDistance(random_points_NBU_i, random_points_BU_crop_ag, byid=T) %>% unlist %>% as.numeric
+  
+  print(start)
+  return(distance)
+}
+
+chunk_size <- 500
+starts <- seq(from=1, to=nrow(random_points_NBU), by=chunk_size)
+
+s <- Sys.time()
+random_points$distance_builtup[random_points$africover_kenya == 8,] <- lapply(starts, calc_distance_NBU_to_BU, chunk_size) %>% unlist
+e <- Sys.time()
+e-s
+
+# Convert to Dataframe ---------------------------------------------------------
 random_points$coord_x <- coordinates(random_points)[,1]
 random_points$coord_y <- coordinates(random_points)[,2]
 random_points <- random_points@data
 
+# Grid IDs ---------------------------------------------------------------------
+a1_extent <- roads_study_area[roads_study_area$road %in% "a1",] %>% extent
+a2_extent <- roads_study_area[roads_study_area$road %in% "a2",] %>% extent
+b9_extent <- roads_study_area[roads_study_area$road %in% "b9",] %>% extent
+
+random_points$grid_id <- NA
+random_points$grid_id[random_points$road %in% "a1" & random_points$coord_y > sum(a1_extent@ymin, a1_extent@ymax)/2] <- 1
+random_points$grid_id[random_points$road %in% "a1" & random_points$coord_y <= sum(a1_extent@ymin, a1_extent@ymax)/2] <- 2
+
+random_points$grid_id[random_points$road %in% "a2" & random_points$coord_y > sum(a2_extent@ymin, a2_extent@ymax)/2] <- 3
+random_points$grid_id[random_points$road %in% "a2" & random_points$coord_y <= sum(a2_extent@ymin, a2_extent@ymax)/2] <- 4
+
+random_points$grid_id[random_points$road %in% "b9" & random_points$coord_y > sum(b9_extent@ymin, b9_extent@ymax)/2] <- 5
+random_points$grid_id[random_points$road %in% "b9" & random_points$coord_y <= sum(b9_extent@ymin, b9_extent@ymax)/2] <- 6
+
+# Save Data --------------------------------------------------------------------
 save(random_points, file=file.path(intermediate_data_file_path, "Africover Random Points with Landsat", "random_points_landsat.Rda"))
 
 # Proportaion Classes ----------------------------------------------------------

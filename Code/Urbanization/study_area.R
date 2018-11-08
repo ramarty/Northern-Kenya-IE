@@ -2,11 +2,11 @@
 # Northern Kenya IE
 
 # Setup ------------------------------------------------------------------------
-if(Sys.info()["user"] == "WB521633") source("C:/Users/wb521633/Dropbox/World Bank/IEs/Northern Kenya IE/Code/northern_kenya_ie_master.R")
+if(Sys.info()["user"] == "WB521633") source("C:/Users/wb521633/Dropbox/World Bank/IEs/Northern-Kenya-IE/Code/northern_kenya_ie_master.R")
 
 library(raster)
 
-buffer_size <- 20 #km
+buffer_size <- 10 #km
 
 # Load Data --------------------------------------------------------------------
 setwd(file.path(intermediate_data_file_path, "Roads"))

@@ -14,6 +14,20 @@ set.seed(42)
 #### Load Data
 load(file.path(intermediate_data_file_path, "Africover Random Points with Landsat", "random_points_landsat.Rda"))
 
+a1_extent <- roads_study_area[roads_study_area$road %in% "a1",] %>% extent
+a2_extent <- roads_study_area[roads_study_area$road %in% "a2",] %>% extent
+b9_extent <- roads_study_area[roads_study_area$road %in% "b9",] %>% extent
+
+random_points$grid_id <- NA
+random_points$grid_id[random_points$road %in% "a1" & random_points$coord_y > sum(a1_extent@ymin, a1_extent@ymax)/2] <- 1
+random_points$grid_id[random_points$road %in% "a1" & random_points$coord_y <= sum(a1_extent@ymin, a1_extent@ymax)/2] <- 2
+
+random_points$grid_id[random_points$road %in% "a2" & random_points$coord_y > sum(a2_extent@ymin, a2_extent@ymax)/2] <- 3
+random_points$grid_id[random_points$road %in% "a2" & random_points$coord_y <= sum(a2_extent@ymin, a2_extent@ymax)/2] <- 4
+
+random_points$grid_id[random_points$road %in% "b9" & random_points$coord_y > sum(b9_extent@ymin, b9_extent@ymax)/2] <- 5
+random_points$grid_id[random_points$road %in% "b9" & random_points$coord_y <= sum(b9_extent@ymin, b9_extent@ymax)/2] <- 6
+
 #### Create Variables 
 random_points$built_up <- as.factor(random_points$africover_kenya == 8) # %>% factor(labels = c("non-built-up", "built-up"))
 random_points$ndvi <- (random_points$band_5 - random_points$band_4) / (random_points$band_5 + random_points$band_4)
